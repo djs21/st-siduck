@@ -79,6 +79,44 @@ Default section order:
 
 When the user requests a durable behavior change, record it here or in the relevant child AGENTS.md
 
+## Purpose
+
+Customized suckless simple terminal (`st`) fork maintained with modern features, upgraded to Upstream Suckless `st 0.9.3` base with security, compatibility, and stability fixes.
+
+## Ownership
+
+Root configuration, source code, build scripts, and durable operational documentation for `st-siduck`.
+
+## Local Contracts
+
+- **Toolchain**: C99 compliant build via standard POSIX `make`.
+- **Upstream Base**: Suckless `st 0.9.3` + master stability fixes (async-safe `sigchld`, `tsetdirt` zero-size guard, bracketed paste reset, IME buffer guard, colon-separated SGR truecolor, CSI 58 undercurl bypass, OSC 110-112 color reset).
+- **Integrated Patches**:
+  - Harfbuzz font shaping & ligatures (`hb.c`, `hb.h`, `x.c`).
+  - Custom box drawing characters (`boxdraw.c`, `boxdraw_data.h`).
+  - Vim modal buffer navigation (`normalMode.c`, `normalMode.h`).
+  - 32-bit visual alpha transparency (`x.c`).
+  - External pipe scripts (`st-urlhandler`, `st-copyout`).
+- **Configuration Contract**: `config.def.h` is the source of truth for configuration; `config.h` is generated upon build.
+
+## Work Guidance
+
+- Never perform wholesale git merges from upstream; port upstream commits surgically to protect Harfbuzz, Boxdraw, and NormalMode hooks in `st.c` and `x.c`.
+- Keep shortcut bindings free from conflict with external multiplexers (e.g. tmux).
+- Verify compilation after every source change with `make clean && make`.
+
+## Verification
+
+- **Compilation**: `make clean && make` completes without errors or warnings.
+- **Version Banner**: `./st -v` reports `./st 0.9.3`.
+
 ## Child DOX Index
 
-This project is not yet indexed. Before continuing you must scan the project, build the DOX tree and replace this message with the actual index. Go deep and scan files recursively to properly evaluate complexity and create nested DOX files where needed.
+The repository is flat and does not contain subdirectories requiring nested DOX files. Module breakdown:
+- `st.c`: Terminal emulation core, escape sequence parser (CSI, OSC, DCS), scrollback buffer, tty management.
+- `x.c`: X11 windowing, XRender 32-bit visual, font rendering (Xft), XIM input handling, clipboard, and event dispatch.
+- `hb.c`, `hb.h`: Harfbuzz shaping engine and glyph caching for font ligatures.
+- `boxdraw.c`, `boxdraw_data.h`: Native pixel-perfect box drawing and block element renderer.
+- `normalMode.c`, `normalMode.h`: Modal terminal buffer navigation using Vim-style motion commands.
+- `config.def.h`: Source template for terminal geometry, colors, fonts, mouse actions, and shortcuts.
+- `config.mk`: Make variables, library dependency paths (`pkg-config`), and package version.
