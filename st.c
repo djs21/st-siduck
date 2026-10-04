@@ -2012,11 +2012,14 @@ strhandle(void)
 			p = strescseq.args[((par == 4) ? 2 : 1)];
 			/* FALLTHROUGH */
 		case 104: /* color reset, here p = NULL */
-			if (par == 10)
+		case 110: /* reset fg */
+		case 111: /* reset bg */
+		case 112: /* reset cursor */
+			if (par == 10 || par == 110)
 				j = defaultfg;
-			else if (par == 11)
+			else if (par == 11 || par == 111)
 				j = defaultbg;
-			else if (par == 12)
+			else if (par == 12 || par == 112)
 				j = defaultcs;
 			else
 				j = (narg > 1) ? atoi(strescseq.args[1]) : -1;
