@@ -1987,8 +1987,8 @@ void
 kpress(XEvent *ev)
 {
 	XKeyEvent *e = &ev->xkey;
-	KeySym ksym;
-	char buf[32], *customkey;
+	KeySym ksym = NoSymbol;
+	char buf[64], *customkey;
 	int len;
 	Rune c;
 	Status status;
@@ -1997,7 +1997,13 @@ kpress(XEvent *ev)
 	if (IS_SET(MODE_KBDLOCK))
 		return;
 
-	len = XmbLookupString(xw.xic, e, buf, sizeof buf, &ksym, &status);
+	if (xw.xic) {
+		len = XmbLookupString(xw.xic, e, buf, sizeof buf, &ksym, &status);
+		if (status == XBufferOverflow)
+			return;
+	} else {
+		len = XLookupString(e, buf, sizeof buf, &ksym, NULL);
+	}
 	/* 1. shortcuts */
 	for (bp = shortcuts; bp < shortcuts + LEN(shortcuts); bp++) {
 		if (ksym == bp->keysym && match(bp->mod, e->state)) {
