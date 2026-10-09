@@ -91,7 +91,10 @@ typedef struct {
 	uint mask;
 	void (*func)(const Arg *);
 	const Arg arg;
+	int screen;
 } MouseKey;
+
+enum screen { S_PRI = -1, S_ALL = 0, S_ALT = 1 };
 
 void die(const char *, ...);
 void redraw(void);
@@ -101,6 +104,7 @@ void externalpipe(const Arg *);
 void iso14755(const Arg *);
 void kscrolldown(const Arg *);
 void kscrollup(const Arg *);
+void ttysend(const Arg *);
 void newterm(const Arg *);
 void printscreen(const Arg *);
 void printsel(const Arg *);

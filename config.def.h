@@ -229,13 +229,15 @@ ResourcePref resources[] = {
 
 /*
  * Internal mouse shortcuts.
- * Beware that overloading Button1 will disable the selection.
+ * Button4/Button5 (wheel) are handled directly in bpress() (new-style
+ * scrollback model): they are forwarded to the application via
+ * mousereport() when mouse tracking is on, and otherwise scroll st's own
+ * ring buffer. These entries are kept only as a fallback example.
  */
-const unsigned int mousescrollincrement = 3;
 static MouseShortcut mshortcuts[] = {
   /* button               mask            string */
-  { Button4,              XK_NO_MOD,      "\031" },
-  { Button5,              XK_NO_MOD,      "\005" },
+  { Button4,              XK_NO_MOD,      "\031", S_PRI },
+  { Button5,              XK_NO_MOD,      "\005", S_PRI },
 };
 
 /* Internal keyboard shortcuts. */
@@ -244,8 +246,6 @@ static MouseShortcut mshortcuts[] = {
 
 MouseKey mkeys[] = {
   /* button               mask            function        argument */
-  { Button4,              XK_NO_MOD,      kscrollup,      {.i =  mousescrollincrement} },
-  { Button5,              XK_NO_MOD,      kscrolldown,    {.i =  mousescrollincrement} },
   { Button4,              Mod4Mask,        zoom,           {.f =  +1} },
   { Button5,              Mod4Mask,        zoom,           {.f =  -1} },
 };
@@ -279,10 +279,14 @@ static Shortcut shortcuts[] = {
   { MODKEY,               XK_s,           changealpha,    {.f = -0.05} },
   { MODKEY,               XK_m,           changealpha,    {.f = +2.00} },
   { TERMMOD,              XK_U,           iso14755,       {.i =  0} },
-  { ShiftMask,            XK_Page_Up,     kscrollup,      {.i = -1} },
-  { ShiftMask,            XK_Page_Down,   kscrolldown,    {.i = -1} },
-  { MODKEY,               XK_Page_Up,     kscrollup,      {.i =  1} },
-  { MODKEY,               XK_Page_Down,   kscrolldown,    {.i =  1} },
+  { ShiftMask,            XK_Page_Up,     kscrollup,      {.i = -1}, S_PRI },
+  { ShiftMask,            XK_Page_Down,   kscrolldown,    {.i = -1}, S_PRI },
+  { ShiftMask,            XK_Home,        kscrollup,      {.i =  1000000}, S_PRI },
+  { ShiftMask,            XK_End,         kscrolldown,    {.i =  1000000}, S_PRI },
+  { ShiftMask,            XK_Page_Up,     ttysend,        {.v = "\033[5;2~"}, S_ALT },
+  { ShiftMask,            XK_Page_Down,   ttysend,        {.v = "\033[6;2~"}, S_ALT },
+  { MODKEY,               XK_Page_Up,     kscrollup,      {.i =  1}, S_PRI },
+  { MODKEY,               XK_Page_Down,   kscrolldown,    {.i =  1}, S_PRI },
   { MODKEY | ShiftMask,   XK_L,           externalpipe,   {.v = openurlcmd } },
   { MODKEY,               XK_y,           externalpipe,   {.v = copyurlcmd } },
   { MODKEY,               XK_o,           externalpipe,   {.v = copyoutput } },

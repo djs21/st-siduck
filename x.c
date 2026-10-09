@@ -28,12 +28,14 @@ typedef struct {
 	KeySym keysym;
 	void (*func)(const Arg *);
 	const Arg arg;
+	int screen;
 } Shortcut;
 
 typedef struct {
 	uint b;
 	uint mask;
 	char *s;
+	int screen;
 } MouseShortcut;
 
 typedef struct {
@@ -492,7 +494,8 @@ bpress(XEvent *e)
 	if (tisaltscr()) {
 		for (ms = mshortcuts; ms < mshortcuts + LEN(mshortcuts); ms++) {
 			if (e->xbutton.button == ms->b
-					&& match(ms->mask, e->xbutton.state)) {
+					&& match(ms->mask, e->xbutton.state)
+					&& (!ms->screen || ms->screen == (tisaltscr() ? S_ALT : S_PRI))) {
 				ttywrite(ms->s, strlen(ms->s), 1);
 				return;
 			}
@@ -501,7 +504,8 @@ bpress(XEvent *e)
 
 	for (mk = mkeys; mk < mkeys + LEN(mkeys); mk++) {
 		if (e->xbutton.button == mk->b
-				&& match(mk->mask, e->xbutton.state)) {
+				&& match(mk->mask, e->xbutton.state)
+				&& (!mk->screen || mk->screen == (tisaltscr() ? S_ALT : S_PRI))) {
 			mk->func(&mk->arg);
 			return;
 		}
@@ -2026,7 +2030,8 @@ kpress(XEvent *ev)
 	}
 	/* 1. shortcuts */
 	for (bp = shortcuts; bp < shortcuts + LEN(shortcuts); bp++) {
-		if (ksym == bp->keysym && match(bp->mod, e->state)) {
+		if (ksym == bp->keysym && match(bp->mod, e->state) &&
+				(!bp->screen || bp->screen == (tisaltscr() ? S_ALT : S_PRI))) {
 			bp->func(&(bp->arg));
 			return;
 		}

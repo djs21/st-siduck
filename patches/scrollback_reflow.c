@@ -426,3 +426,12 @@ kscrollup(const Arg *arg)
 
 	kscroll(&a);
 }
+
+/* ttysend(): forward a raw escape string to the running application.
+ * Used so Shift+PageUp/Down can reach a TUI (e.g. tmux/herdr) that owns
+ * the alt-screen instead of scrolling st's own buffer. */
+void
+ttysend(const Arg *arg)
+{
+	ttywrite(arg->v, strlen(arg->v), 1);
+}
