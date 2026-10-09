@@ -149,6 +149,7 @@ extern wchar_t *worddelimiters;
 extern int allowaltscreen;
 extern char *termname;
 extern unsigned int tabspaces;
+extern unsigned int scrollback_lines;
 extern unsigned int defaultfg;
 extern unsigned int defaultbg;
 extern unsigned int defaultcs;

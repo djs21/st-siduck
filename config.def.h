@@ -113,6 +113,9 @@ char *termname = "st-256color";
  */
 unsigned int tabspaces = 8;
 
+/* scrollback buffer size (lines kept in history) */
+unsigned int scrollback_lines = 5000;
+
 /* bg opacity */
 float alpha = 1.0;
 
