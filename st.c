@@ -1111,38 +1111,7 @@ static char *getcwd_by_pid(pid_t pid) {
 	return realpath(buf, NULL);
 }
 
-void
-kscrolldown(const Arg* a)
-{
-	int n = a->i;
-
-	if (n < 0)
-		n = term.row + n;
-
-	if (n > term.scr)
-		n = term.scr;
-
-	if (term.scr > 0) {
-		term.scr -= n;
-		selscroll(0, -n);
-		tfulldirt();
-	}
-}
-
-void
-kscrollup(const Arg* a)
-{
-	int n = a->i;
-
-	if (n < 0)
-		n = term.row + n;
-
-	if (term.scr <= HISTSIZE-n) {
-		term.scr += n;
-		selscroll(0, n);
-		tfulldirt();
-	}
-}
+/* kscrollup()/kscrolldown() moved to patches/scrollback_reflow.c (ring-buffer model) */
 
 void
 tscrolldown(int orig, int n, int copyhist)
@@ -1150,14 +1119,9 @@ tscrolldown(int orig, int n, int copyhist)
 	int i;
 	Line temp;
 
-	LIMIT(n, 0, term.bot-orig+1);
+	(void)copyhist;
 
-	if (copyhist) {
-		term.histi = (term.histi - 1 + HISTSIZE) % HISTSIZE;
-		temp = term.hist[term.histi];
-		term.hist[term.histi] = term.line[term.bot];
-		term.line[term.bot] = temp;
-	}
+	LIMIT(n, 0, term.bot-orig+1);
 
 	tsetdirt(orig, term.bot-n);
 	tclearregion(0, term.bot-n+1, term.col-1, term.bot);
@@ -1175,19 +1139,38 @@ void
 tscrollup(int orig, int n, int copyhist)
 {
 	int i;
+	uint64_t newstart;
+	uint64_t oldstart;
+
+	int attop;
 	Line temp;
 
+	(void)copyhist;
+
+	oldstart = sb_view_start();
 	LIMIT(n, 0, term.bot-orig+1);
 
-	if (copyhist) {
-		term.histi = (term.histi + 1) % HISTSIZE;
-		temp = term.hist[term.histi];
-		term.hist[term.histi] = term.line[orig];
-		term.line[orig] = temp;
+	if (!IS_SET(MODE_ALTSCREEN) && orig == term.top) {
+		/* At top of history only if history exists */
+		attop = (sb.len != 0 && sb.view_offset == sb.len);
+
+		if (sb.view_offset > 0 && !attop)
+			sb.view_offset += n;
+
+		for (i = 0; i < n; i++)
+			sb_push(term.line[orig + i]);
+
+		/* if at the top, keep me there */
+		if (attop)
+			sb.view_offset = sb.len;
+		/* otherwise clamp me */
+		else if (sb.view_offset > sb.len)
+			sb.view_offset = sb.len;
 	}
 
-	if (term.scr > 0 && term.scr < HISTSIZE)
-		term.scr = MIN(term.scr + n, HISTSIZE-1);
+	newstart = sb_view_start();
+	if (sb.view_offset > 0)
+		selscrollback(oldstart - newstart);
 
 	tclearregion(0, orig, term.col-1, orig+n-1);
 	tsetdirt(orig+n, term.bot);

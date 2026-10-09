@@ -23,26 +23,8 @@ tlinelen(Line line)
 }
 
 /* ---- Ring buffer core (ported: diff st.c hunk @@ -232,6 +233,379) ---- */
-typedef struct
-{
-	Line *buf;       /* ring of Line pointers */
-	int cap;         /* max number of lines */
-	int len;         /* current number of valid lines (<= cap) */
-	int head;        /* physical index of logical oldest (valid when len>0) */
-	uint64_t base;   /* Can overflow in the extreme */
-	/*
-	 * max_width tracks the widest line ever pushed to scrollback.
-	 * It may be conservative (stale) if that line has since been
-	 * evicted from the ring buffer, which is acceptable - it just
-	 * means we might reflow when not strictly necessary, which is
-	 * better than skipping a needed reflow.
-	 */
-	int max_width;
-	int view_offset; /* 0 means live screen */
-} Scrollback;
-
-static Scrollback sb;
-
+/* typedef Scrollback + `static Scrollback sb;` live in
+ * patches/scrollback_reflow.h so earlier st.c code can reference them. */
 static int
 sb_phys_index(int logical_idx)
 {
@@ -402,4 +384,45 @@ static int
 tlinelen_render(int y)
 {
 	return tlinelen(renderline(y));
+}
+
+/* ---- Scroll commands (ported: diff st.c hunk @@ -2163,6 +2601,46) ---- */
+static void
+kscroll(const Arg *arg)
+{
+	uint64_t oldstart;
+	uint64_t newstart;
+
+	oldstart = sb_view_start();
+	sb.view_offset += arg->i;
+	LIMIT(sb.view_offset, 0, sb.len);
+	newstart = sb_view_start();
+	selscrollback(oldstart - newstart);
+	redraw();
+}
+
+void
+kscrolldown(const Arg *arg)
+{
+	Arg a;
+
+	if (arg->i < 0)
+		a.i = -term.row;
+	else
+		a.i = -arg->i;
+
+	kscroll(&a);
+}
+
+void
+kscrollup(const Arg *arg)
+{
+	Arg a;
+
+	if (arg->i < 0)
+		a.i = term.row;
+	else
+		a.i = arg->i;
+
+	kscroll(&a);
 }
