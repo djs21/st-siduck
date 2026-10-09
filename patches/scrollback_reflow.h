@@ -37,11 +37,13 @@ static Scrollback sb;
 /* Helpers referenced from st.c code that appears before the EOF include. */
 static int tlinelen(Line line);
 static Line renderline(int y);
+static Line sb_get(int idx);
 static void sb_init(int lines);
 static void sb_clear(void);
 static void sb_push(Line line);
 static void sb_resize(int col);
 static void sb_pop_screen(int loaded, int new_cols);
+static void sb_reset_on_clear(void);
 static uint64_t sb_view_start(void);
 static void sb_view_changed(void);
 static void selscrollback(int delta);

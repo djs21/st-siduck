@@ -37,7 +37,6 @@
 #define ESC_ARG_SIZ   16
 #define STR_BUF_SIZ   ESC_BUF_SIZ
 #define STR_ARG_SIZ   ESC_ARG_SIZ
-#define HISTSIZE      2000
 
 /* macros */
 #define IS_SET(flag)		((term.mode & (flag)) != 0)
@@ -46,11 +45,8 @@
 #define ISCONTROLC1(c)		(BETWEEN(c, 0x80, 0x9f))
 #define ISCONTROL(c)		(ISCONTROLC0(c) || ISCONTROLC1(c))
 #define ISDELIM(u)		(u && wcschr(worddelimiters, u))
-#define TLINE(y)		((y) < term.scr ? term.hist[((y) + term.histi - \
-				term.scr + HISTSIZE + 1) % HISTSIZE] : \
-				term.line[(y) - term.scr])
-
-#define TLINE_HIST(y)           ((y) <= HISTSIZE-term.row+2 ? term.hist[(y)] : term.line[(y-HISTSIZE+term.row-3)])
+/* TLINE()/TLINE_HIST() removed: scrollback now lives in the ring
+ * buffer (patches/scrollback_reflow.c) and is read through renderline(). */
 
 /* constants */
 #define ISO14755CMD		"dmenu -w \"$WINDOWID\" -p codepoint: </dev/null"
@@ -129,9 +125,6 @@ typedef struct {
 	int col;      /* nb col */
 	Line *line;   /* screen */
 	Line *alt;    /* alternate screen */
-	Line hist[HISTSIZE]; /* history buffer */
-	int histi;    /* history index */
-	int scr;      /* scroll back */
 	int *dirty;   /* dirtyness of lines */
 	TCursor c;    /* cursor */
 	int ocx;      /* old cursor col */
@@ -426,22 +419,8 @@ selinit(void)
 	sel.ob.x = -1;
 }
 
-/* tlinelen() moved to patches/scrollback_reflow.c (ring-buffer model).
- * tlinehistlen() is kept here for the legacy externalpipe history dump and
- * is removed when that path is ported to the ring buffer (task .5). */
-int
-tlinehistlen(int y)
-{
-	int i = term.col;
-
-	if (TLINE_HIST(y)[i - 1].mode & ATTR_WRAP)
-		return i;
-
-	while (i > 0 && TLINE_HIST(y)[i - 1].u == ' ')
-		--i;
-
-	return i;
-}
+/* tlinelen()/tlinehistlen() moved to patches/scrollback_reflow.c
+ * (ring-buffer model). The externalpipe history dump now walks sb directly. */
 
 void
 selstart(int col, int row, int snap)
@@ -539,6 +518,7 @@ selsnap(int *x, int *y, int direction)
 	int newx, newy, xt, yt;
 	int delim, prevdelim;
 	const Glyph *gp, *prevgp;
+	Line line;
 
 	switch (sel.snap) {
 	case SNAP_WORD:
@@ -546,7 +526,7 @@ selsnap(int *x, int *y, int direction)
 		 * Snap around if the word wraps around at the end or
 		 * beginning of a line.
 		 */
-		prevgp = &TLINE(*y)[*x];
+		prevgp = &renderline(*y)[*x];
 		prevdelim = ISDELIM(prevgp->u);
 		for (;;) {
 			newx = *x + direction;
@@ -561,14 +541,15 @@ selsnap(int *x, int *y, int direction)
 					yt = *y, xt = *x;
 				else
 					yt = newy, xt = newx;
-				if (!(TLINE(yt)[xt].mode & ATTR_WRAP))
+				line = renderline(yt);
+				if (!(line[xt].mode & ATTR_WRAP))
 					break;
 			}
 
 			if (newx >= tlinelen_render(newy))
 				break;
 
-			gp = &TLINE(newy)[newx];
+			gp = &renderline(newy)[newx];
 			delim = ISDELIM(gp->u);
 			if (!(gp->mode & ATTR_WDUMMY) && (delim != prevdelim
 					|| (delim && gp->u != prevgp->u)))
@@ -589,14 +570,14 @@ selsnap(int *x, int *y, int direction)
 		*x = (direction < 0) ? 0 : term.col - 1;
 		if (direction < 0) {
 			for (; *y > 0; *y += direction) {
-				if (!(TLINE(*y-1)[term.col-1].mode
+				if (!(renderline(*y-1)[term.col-1].mode
 						& ATTR_WRAP)) {
 					break;
 				}
 			}
 		} else if (direction > 0) {
 			for (; *y < term.row-1; *y += direction) {
-				if (!(TLINE(*y)[term.col-1].mode
+				if (!(renderline(*y)[term.col-1].mode
 						& ATTR_WRAP)) {
 					break;
 				}
@@ -610,8 +591,9 @@ char *
 getsel(void)
 {
 	char *str, *ptr;
-	int y, bufsize, lastx, linelen;
+	int y, bufsize, lastx, linelen, end_idx, insert_newline, is_wrapped;
 	const Glyph *gp, *last;
+	Line line;
 
 	if (sel.ob.x == -1)
 		return NULL;
@@ -621,26 +603,31 @@ getsel(void)
 
 	/* append every set & selected glyph to the selection */
 	for (y = sel.nb.y; y <= sel.ne.y; y++) {
-		if ((linelen = tlinelen_render(y)) == 0) {
+		line = renderline(y);
+		linelen = tlinelen_render(y);
+
+		if (linelen == 0) {
 			*ptr++ = '\n';
 			continue;
 		}
 
 		if (sel.type == SEL_RECTANGULAR) {
-			gp = &TLINE(y)[sel.nb.x];
+			gp = &line[sel.nb.x];
 			lastx = sel.ne.x;
 		} else {
-			gp = &TLINE(y)[sel.nb.y == y ? sel.nb.x : 0];
+			gp = &line[sel.nb.y == y ? sel.nb.x : 0];
 			lastx = (sel.ne.y == y) ? sel.ne.x : term.col-1;
 		}
-		last = &TLINE(y)[MIN(lastx, linelen-1)];
-		while (last >= gp && last->u == ' ')
+		end_idx = MIN(lastx, linelen-1);
+		is_wrapped = (line[end_idx].mode & ATTR_WRAP) != 0;
+		last = &line[end_idx];
+		while (last >= gp && last->u == ' ') {
 			--last;
+		}
 
 		for ( ; gp <= last; ++gp) {
 			if (gp->mode & ATTR_WDUMMY)
 				continue;
-
 			ptr += utf8encode(gp->u, ptr);
 		}
 
@@ -653,7 +640,13 @@ getsel(void)
 		 * st.
 		 * FIXME: Fix the computer world.
 		 */
-		if ((y < sel.ne.y || lastx >= linelen) && !(last->mode & ATTR_WRAP))
+		insert_newline = 0;
+		if ((y < sel.ne.y || lastx >= linelen) &&
+			(!is_wrapped || sel.type == SEL_RECTANGULAR)) {
+			insert_newline = 1;
+		}
+
+		if (insert_newline)
 			*ptr++ = '\n';
 	}
 	*ptr = 0;
@@ -1818,6 +1811,12 @@ csihandle(void)
 			break;
 		case 2: /* all */
 			tclearregion(0, 0, term.col-1, term.row-1);
+			if (!IS_SET(MODE_ALTSCREEN))
+				sb_reset_on_clear();
+			break;
+		case 3:
+			if (!IS_SET(MODE_ALTSCREEN))
+				sb_reset_on_clear();
 			break;
 		default:
 			goto unknown;
@@ -2139,9 +2138,11 @@ externalpipe(const Arg *arg)
 	oldsigpipe = signal(SIGPIPE, SIG_IGN);
 	newline = 0;
 	/* modify externalpipe patch to pipe history too      */
-	for (n = 0; n <= HISTSIZE + 2; n++) {
-		bp = TLINE_HIST(n);
-		lastpos = MIN(tlinehistlen(n) +1, term.col) - 1;
+	for (n = 0; n < sb.len; n++) {
+		bp = sb_get(n);
+		if (bp == NULL)
+			break;
+		lastpos = MIN(tlinelen(bp) + 1, term.col) - 1;
 		if (lastpos < 0)
 			break;
 		if (lastpos == 0)
@@ -2150,7 +2151,7 @@ externalpipe(const Arg *arg)
 		for (; bp < end; ++bp)
 			if (xwrite(to[1], buf, utf8encode(bp->u, buf)) < 0)
 				break;
-		if ((newline = TLINE_HIST(n)[lastpos].mode & ATTR_WRAP))
+		if ((newline = sb_get(n)[lastpos].mode & ATTR_WRAP))
 			continue;
 		if (xwrite(to[1], "\n", 1) < 0)
 			break;
