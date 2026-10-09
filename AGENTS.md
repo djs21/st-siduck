@@ -97,26 +97,34 @@ Root configuration, source code, build scripts, and durable operational document
   - Vim modal buffer navigation (`normalMode.c`, `normalMode.h`).
   - 32-bit visual alpha transparency (`x.c`).
   - External pipe scripts (`st-urlhandler`, `st-copyout`).
+  - Scrollback with reflow-on-resize + ring buffer (`patches/`, always-on): replaces the legacy `term.hist`/`term.scr` model, forwards the mouse wheel and Shift+PageUp/Down to the running application on the alt-screen, and rewraps history on resize.
+- **Scrollback Model**: history lives in a ring buffer (`Scrollback sb` in `patches/scrollback_reflow.c`), read through `renderline()`. `scrollback_lines` (config) sets capacity. `term.maxcol` is disabled so columns may shrink and reflow. On the alt-screen, wheel and Shift+PageUp/Down are forwarded to the application; otherwise they scroll `st`'s own buffer.
+- **Screen-Aware Bindings**: `struct Shortcut`/`MouseShortcut`/`MouseKey` carry an `int screen` (`S_PRI`/`S_ALL`/`S_ALT`); `kpress()`/`bpress()` only fire a binding whose screen matches the current one.
 - **Configuration Contract**: `config.def.h` is the source of truth for configuration; `config.h` is generated upon build.
 
 ## Work Guidance
 
 - Never perform wholesale git merges from upstream; port upstream commits surgically to protect Harfbuzz, Boxdraw, and NormalMode hooks in `st.c` and `x.c`.
 - Keep shortcut bindings free from conflict with external multiplexers (e.g. tmux).
+- Keep the scrollback/reflow patch always-on and organized under `patches/` (see `patches/AGENTS.md`); do not add `#if *_PATCH` toggles or a `patches.h`.
+- After editing `config.def.h`, regenerate `config.h` (`cp config.def.h config.h`) before building.
 - Verify compilation after every source change with `make clean && make`.
 
 ## Verification
 
 - **Compilation**: `make clean && make` completes without errors or warnings.
 - **Version Banner**: `./st -v` reports `./st 0.9.3`.
+- **Alt-screen scroll**: with a TUI (tmux/herdr) running, the wheel and Shift+PageUp/Down act inside the application and do not jump to `st`'s own scrollback.
+- **Reflow**: resizing the window rewraps history without losing content.
 
 ## Child DOX Index
 
-The repository is flat and does not contain subdirectories requiring nested DOX files. Module breakdown:
-- `st.c`: Terminal emulation core, escape sequence parser (CSI, OSC, DCS), scrollback buffer, tty management.
+The repository root is otherwise flat. Module breakdown:
+- `st.c`: Terminal emulation core, escape sequence parser (CSI, OSC, DCS), tty management. Scrollback and reflow live in `patches/` (see below).
 - `x.c`: X11 windowing, XRender 32-bit visual, font rendering (Xft), XIM input handling, clipboard, and event dispatch.
 - `hb.c`, `hb.h`: Harfbuzz shaping engine and glyph caching for font ligatures.
 - `boxdraw.c`, `boxdraw_data.h`: Native pixel-perfect box drawing and block element renderer.
 - `normalMode.c`, `normalMode.h`: Modal terminal buffer navigation using Vim-style motion commands.
 - `config.def.h`: Source template for terminal geometry, colors, fonts, mouse actions, and shortcuts.
 - `config.mk`: Make variables, library dependency paths (`pkg-config`), and package version.
+- `patches/`: Always-on, flexipatch-style scrollback + reflow patch layer; owned by `patches/AGENTS.md`.
