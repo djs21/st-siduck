@@ -243,6 +243,9 @@ static int iofd = 1;
 static int cmdfd;
 static pid_t pid;
 
+/* Always-on patches (flexipatch-style router, no patches.h) */
+#include "patches/st_include.h"
+
 static const uchar utfbyte[UTF_SIZ + 1] = {0x80,    0, 0xC0, 0xE0, 0xF0};
 static const uchar utfmask[UTF_SIZ + 1] = {0xC0, 0x80, 0xE0, 0xF0, 0xF8};
 static const Rune utfmin[UTF_SIZ + 1] = {       0,    0,  0x80,  0x800,  0x10000};
@@ -2856,3 +2859,6 @@ redraw(void)
 	tfulldirt();
 	draw();
 }
+
+/* Always-on patch bodies (flexipatch-style router, no patches.h) */
+#include "patches/st_include.c"

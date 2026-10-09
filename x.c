@@ -76,6 +76,9 @@ static void zoomreset(const Arg *);
 /* config.h for applying patches and the configuration. */
 #include "config.h"
 
+/* Always-on patches (flexipatch-style router, no patches.h) */
+#include "patches/x_include.h"
+
 /* XEMBED messages */
 #define XEMBED_FOCUS_IN  4
 #define XEMBED_FOCUS_OUT 5
@@ -2443,3 +2446,6 @@ run:
 
 	return 0;
 }
+
+/* Always-on patch bodies (flexipatch-style router, no patches.h) */
+#include "patches/x_include.c"

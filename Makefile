@@ -21,12 +21,16 @@ config.h:
 .c.o:
 	$(CC) $(STCFLAGS) -c $<
 
-st.o: config.h st.h win.h
-x.o: arg.h config.h st.h win.h hb.h
+st.o: config.h st.h win.h patches/st_include.h patches/scrollback_reflow.h
+x.o: arg.h config.h st.h win.h hb.h patches/x_include.h
 hb.o: st.h
 boxdraw.o: config.h st.h boxdraw_data.h
 
-$(OBJ): config.h config.mk
+$(OBJ): config.h config.mk \
+	patches/st_include.h patches/st_include.c \
+	patches/x_include.h patches/x_include.c \
+	patches/scrollback_reflow.h patches/scrollback_reflow.c \
+	patches/scrollback_reflow_x.c
 
 st: $(OBJ)
 	$(CC) -o $@ $(OBJ) $(STLDFLAGS)
