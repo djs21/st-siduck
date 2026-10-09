@@ -5,6 +5,7 @@
 #include <limits.h>
 #include <pwd.h>
 #include <stdarg.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -194,7 +195,7 @@ static void tdeletechar(int);
 static void tdeleteline(int);
 static void tinsertblank(int);
 static void tinsertblankline(int);
-static int tlinelen(int);
+static int tlinelen_render(int);
 static void tmoveto(int, int);
 static void tmoveato(int, int);
 static void tnewline(int);
@@ -426,20 +427,9 @@ selinit(void)
 	sel.ob.x = -1;
 }
 
-int
-tlinelen(int y)
-{
-	int i = term.col;
-
-	if (TLINE(y)[i - 1].mode & ATTR_WRAP)
-		return i;
-
-	while (i > 0 && TLINE(y)[i - 1].u == ' ')
-		--i;
-
-	return i;
-}
-
+/* tlinelen() moved to patches/scrollback_reflow.c (ring-buffer model).
+ * tlinehistlen() is kept here for the legacy externalpipe history dump and
+ * is removed when that path is ported to the ring buffer (task .5). */
 int
 tlinehistlen(int y)
 {
@@ -521,10 +511,10 @@ selnormalize(void)
 	/* expand selection over line breaks */
 	if (sel.type == SEL_RECTANGULAR)
 		return;
-	i = tlinelen(sel.nb.y);
+	i = tlinelen_render(sel.nb.y);
 	if (i < sel.nb.x)
 		sel.nb.x = i;
-	if (tlinelen(sel.ne.y) <= sel.ne.x)
+	if (tlinelen_render(sel.ne.y) <= sel.ne.x)
 		sel.ne.x = term.col - 1;
 }
 
@@ -576,7 +566,7 @@ selsnap(int *x, int *y, int direction)
 					break;
 			}
 
-			if (newx >= tlinelen(newy))
+			if (newx >= tlinelen_render(newy))
 				break;
 
 			gp = &TLINE(newy)[newx];
@@ -632,7 +622,7 @@ getsel(void)
 
 	/* append every set & selected glyph to the selection */
 	for (y = sel.nb.y; y <= sel.ne.y; y++) {
-		if ((linelen = tlinelen(y)) == 0) {
+		if ((linelen = tlinelen_render(y)) == 0) {
 			*ptr++ = '\n';
 			continue;
 		}
@@ -2244,7 +2234,7 @@ tdumpline(int n)
 	const Glyph *bp, *end;
 
 	bp = &term.line[n][0];
-	end = &bp[MIN(tlinelen(n), term.col) - 1];
+	end = &bp[MIN(tlinelen_render(n), term.col) - 1];
 	if (bp != end || bp->u != ' ') {
 		for ( ;bp <= end; ++bp)
 			tprinter(buf, utf8encode(bp->u, buf));
