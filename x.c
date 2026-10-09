@@ -467,6 +467,23 @@ bpress(XEvent *e)
 	MouseKey *mk;
 	int snap;
 
+	if (e->xbutton.button == Button4 || e->xbutton.button == Button5) {
+		Arg a;
+		if (IS_SET(MODE_MOUSE) && !(e->xbutton.state & forceselmod)) {
+			mousereport(e);
+			return;
+		}
+		if (!tisaltscr()) {
+			a.i = 1;
+			if (e->xbutton.button == Button4) {
+				kscrollup(&a);
+			} else {
+				kscrolldown(&a);
+			}
+		}
+		return;
+	}
+
 	if (IS_SET(MODE_MOUSE) && !(e->xbutton.state & forceselmod)) {
 		mousereport(e);
 		return;
