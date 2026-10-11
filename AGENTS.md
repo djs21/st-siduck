@@ -90,7 +90,8 @@ Root configuration, source code, build scripts, and durable operational document
 ## Local Contracts
 
 - **Toolchain**: C99 compliant build via standard POSIX `make`.
-- **Upstream Base**: Suckless `st 0.9.3` + master stability fixes (async-safe `sigchld`, `tsetdirt` zero-size guard, bracketed paste reset, IME buffer guard, colon-separated SGR truecolor, CSI 58 undercurl bypass, OSC 110-112 color reset).
+- **Upstream Base**: Suckless `st 0.9.3` + master stability pack (async-safe `sigchld`, `tsetdirt` zero-size guard, bracketed paste reset, IME buffer guard, colon-separated SGR truecolor, CSI 58 undercurl bypass, OSC 110-112 color reset, DSR 5n OK response, CSI ? u kitty ignore, XTSMGRAPHICS CSI S bypass, UTF-8 C1 ignore, empty title fallback to `opt_title`, `XReparentWindow` BadMatch guard, color index bounds check, nowrap wide glyph positioning, selection screen isolation, and xterm-compliant mouse button tracking).
+- **Mouse Paste Behavior**: Right-click (`Button3`) auto-paste is disabled in `x.c` to avoid accidental primary clipboard execution.
 - **Integrated Patches**:
   - Harfbuzz font shaping & ligatures (`hb.c`, `hb.h`, `x.c`).
   - Custom box drawing characters (`boxdraw.c`, `boxdraw_data.h`).
