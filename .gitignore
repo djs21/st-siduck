@@ -6,3 +6,4 @@ st
 .worktrees
 .agents/
 .beads/
+.codegraph/
