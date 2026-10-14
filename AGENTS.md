@@ -90,7 +90,7 @@ Root configuration, source code, build scripts, and durable operational document
 ## Local Contracts
 
 - **Toolchain**: C99 compliant build via standard POSIX `make`.
-- **Upstream Base**: Suckless `st 0.9.3` + master stability pack (async-safe `sigchld`, `tsetdirt` zero-size guard, bracketed paste reset, IME buffer guard, colon-separated SGR truecolor, CSI 58 undercurl bypass, OSC 110-112 color reset, DSR 5n OK response, CSI ? u kitty ignore, XTSMGRAPHICS CSI S bypass, UTF-8 C1 ignore, empty title fallback to `opt_title`, `XReparentWindow` BadMatch guard, color index bounds check, nowrap wide glyph positioning, selection screen isolation, xterm-compliant mouse button tracking, and visibility repaint guard to prevent blank window on unobscure).
+- **Upstream Base**: Suckless `st 0.9.3` + master stability pack (async-safe `sigchld`, `tsetdirt` zero-size guard, bracketed paste reset, IME buffer guard, colon-separated SGR truecolor, CSI 58 undercurl bypass, OSC 110-112 color reset, DSR 5n OK response, CSI ? u kitty ignore, XTSMGRAPHICS CSI S bypass, UTF-8 C1 ignore, empty title fallback to `opt_title`, `XReparentWindow` BadMatch guard, color index bounds check, nowrap wide glyph positioning, selection screen isolation, xterm-compliant mouse button tracking, and window visibility/offscreen-move repaint guards to prevent blank window on DWM tag/stack transitions and unobscure).
 - **Mouse Paste Behavior**: Right-click (`Button3`) auto-paste is disabled in `x.c` to avoid accidental primary clipboard execution.
 - **Integrated Patches**:
   - Harfbuzz font shaping & ligatures (`hb.c`, `hb.h`, `x.c`).

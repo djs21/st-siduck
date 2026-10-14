@@ -187,6 +187,7 @@ static int evrow(XEvent *);
 static void expose(XEvent *);
 static void visibility(XEvent *);
 static void unmap(XEvent *);
+static void map(XEvent *);
 static void kpress(XEvent *);
 static void cmessage(XEvent *);
 static void resize(XEvent *);
@@ -213,6 +214,7 @@ static void (*handler[LASTEvent])(XEvent *) = {
 	[ConfigureNotify] = resize,
 	[VisibilityNotify] = visibility,
 	[UnmapNotify] = unmap,
+	[MapNotify] = map,
 	[Expose] = expose,
 	[FocusIn] = focus,
 	[FocusOut] = focus,
@@ -1878,6 +1880,7 @@ xfinishdraw(void)
 	XSetForeground(xw.dpy, dc.gc,
 			dc.col[IS_SET(MODE_REVERSE)?
 				defaultfg : defaultbg].pixel);
+	XFlush(xw.dpy);
 }
 
 void
@@ -1893,6 +1896,7 @@ xximspot(int x, int y)
 void
 expose(XEvent *ev)
 {
+	win.mode |= MODE_VISIBLE;
 	redraw();
 }
 
@@ -1910,6 +1914,13 @@ void
 unmap(XEvent *ev)
 {
 	win.mode &= ~MODE_VISIBLE;
+}
+
+void
+map(XEvent *ev)
+{
+	win.mode |= MODE_VISIBLE;
+	redraw();
 }
 
 void
@@ -1980,6 +1991,10 @@ focus(XEvent *ev)
 		xseturgency(0);
 		if (IS_SET(MODE_FOCUS))
 			ttywrite("\033[I", 3, 0);
+		if (!IS_SET(MODE_VISIBLE)) {
+			win.mode |= MODE_VISIBLE;
+			redraw();
+		}
 	} else {
 		XUnsetICFocus(xw.xic);
 		win.mode &= ~MODE_FOCUSED;
@@ -2108,9 +2123,21 @@ cmessage(XEvent *e)
 void
 resize(XEvent *e)
 {
-	if (e->xconfigure.width == win.w && e->xconfigure.height == win.h)
+	if (e->xconfigure.width == win.w && e->xconfigure.height == win.h) {
+		if (xw.l != e->xconfigure.x || xw.t != e->xconfigure.y) {
+			int was_offscreen = (xw.l < 0 || xw.t < 0);
+			xw.l = e->xconfigure.x;
+			xw.t = e->xconfigure.y;
+			if ((was_offscreen || !IS_SET(MODE_VISIBLE)) && xw.l >= 0 && xw.t >= 0) {
+				win.mode |= MODE_VISIBLE;
+				redraw();
+			}
+		}
 		return;
+	}
 
+	xw.l = e->xconfigure.x;
+	xw.t = e->xconfigure.y;
 	cresize(e->xconfigure.width, e->xconfigure.height);
 }
 
@@ -2137,6 +2164,8 @@ run(void)
 		if (ev.type == ConfigureNotify) {
 			w = ev.xconfigure.width;
 			h = ev.xconfigure.height;
+			xw.l = ev.xconfigure.x;
+			xw.t = ev.xconfigure.y;
 		}
 	} while (ev.type != MapNotify);
 
